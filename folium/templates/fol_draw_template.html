@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
+   <link rel="stylesheet" href="http://leaflet.github.io/Leaflet.draw/leaflet.draw.css" />
+   <script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
+   <script src="http://leaflet.github.io/Leaflet.draw/leaflet.draw.js"></script>
+   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js"></script>
+
+   <style>
+
+      #map {
+        position:absolute;
+        top:0;
+        bottom:0;
+        right:0;
+        left:0;
+      }
+
+   </style>
+</head>
+
+
+<body>
+
+   <div id="map" {{ size }}></div>
+
+   <script>
+
+       // begin IPython MapPathView register
+
+       var MapPathView = parent.IPython.DOMWidgetView.extend({
+
+           render: function(){
+               this.$el.addClass('widget-hbox-single'); /* Apply this class to the widget container to make
+                                                            it fit with the other built in widgets.*/
+               this.$el.text('');
+               this.$label = $('<div />')
+                    .addClass('widget-hlabel')
+                    .addClass('map-path-widget')
+                    .appendTo(this.$el)
+                    .hide(); // Hide the label by default.
+               console.log(this.model.id)
+               window.map_backbone = this
+           },
+
+           update: function() {
+               this.$el.text(this.model.get('value'));
+               return MapPathView.__super__.update.apply(this);
+           },
+           // Tell Backbone to listen to the change event of input controls (which the HTML date picker is)
+
+       });
+
+       // Register the MapPathView with the widget manager.
+       parent.IPython.WidgetManager.register_widget_view('MapPathView', MapPathView);
+
+       // end MapPathView register
+
+       var map = L.map('map').setView([{{ lat }}, {{ lon }}], {{ zoom_level }});
+
+       // begin leaflet.draw
+
+       // Initialise the FeatureGroup to store editable layers
+       var drawnItems = new L.FeatureGroup();
+       map.addLayer(drawnItems);
+
+       // Initialise the draw control and pass it the FeatureGroup of editable layers
+       var drawControl = new L.Control.Draw({
+           edit: {
+               featureGroup: drawnItems
+           }
+       });
+
+       var drawControl = new L.Control.Draw({
+           edit: {
+               featureGroup: drawnItems
+           }
+       });
+
+       map.addControl(drawControl);
+
+       map.on('draw:created', function (e) {
+           var type = e.layerType,
+                   layer = e.layer;
+
+           if (type === 'marker') {
+               // Do marker specific actions
+           }
+
+           // Do whatever else you need to. (save to db, add to map etc)
+           console.log(JSON.stringify(layer._latlngs));
+
+           if (typeof window.map_backbone === "undefined") {
+           } else {
+               window.map_backbone.model.set('value', JSON.stringify(layer._latlngs))
+               window.map_backbone.touch()
+
+           }
+           drawnItems.addLayer(layer);
+       });
+
+       map.on('draw:edited', function (e) {
+           var layers = e.layers;
+           layers.eachLayer(function (layer) {
+               console.log(JSON.stringify(layer._latlngs));
+               // this is going to stomp over everything but the last layer
+               if (typeof window.map_backbone === "undefined") {
+               } else {
+                   window.map_backbone.model.set('value', JSON.stringify(layer._latlngs))
+                   window.map_backbone.touch()
+               }
+
+           });
+       });
+
+       // end leaflet.draw
+
+       L.tileLayer('{{ Tiles }}', {
+           maxZoom: {{ max_zoom }},
+       attribution: '{{ attr }}'
+       }).addTo(map);
+
+   </script>
+
+</body>
+

@@ -15,6 +15,42 @@ import functools
 from jinja2 import Environment, PackageLoader
 from pkg_resources import resource_string, resource_filename
 import utilities
+from IPython.html import widgets
+from IPython.utils.traitlets import Unicode
+from IPython.html.widgets.widget import CallbackDispatcher
+
+
+class MapPathWidget(widgets.DOMWidget):
+    _view_name = Unicode('MapPathView', sync=True)
+    value = Unicode(sync=True)
+
+    def __init__(self, **kwargs):
+        super(MapPathWidget, self).__init__(**kwargs)
+        self._submission_callbacks = CallbackDispatcher()
+        self.on_msg(self._handle_string_msg)
+
+    def _handle_string_msg(self, _, content):
+        """Handle a msg from the front-end.
+
+        Parameters
+        ----------
+        content: dict
+            Content of the msg."""
+        if content.get('event', '') == 'submit':
+            self._submission_callbacks(self)
+
+    def on_submit(self, callback, remove=False):
+        """(Un)Register a callback to handle text submission.
+
+        Triggered when the user clicks enter.
+
+        Parameters
+        ----------
+        callback: callable
+            Will be called with exactly one argument: the Widget instance
+        remove: bool (optional)
+            Whether to unregister the callback"""
+        self._submission_callbacks.register_callback(callback, remove=remove)
 
 
 def iter_obj(type):
@@ -642,6 +678,20 @@ class Map(object):
 
         self.HTML = html_templ.render(self.template_vars)
 
+    def inline_map(self, template='fol_draw_template.html'):
+        """
+        Embeds the HTML source of the map directly into an IPython notebook.
+
+        This method will not work if the map depends on any files (json data). Also this uses
+        the HTML5 srcdoc attribute, which may not be supported in all browsers.
+        """
+        from IPython.display import HTML
+
+        html_templ = self.env.get_template(template)
+        self.HTML = html_templ.render(self.template_vars)
+
+        return HTML('<iframe srcdoc="{srcdoc}" style="width: 100%; height: 510px; border: none"></iframe>'.format(srcdoc=self.HTML.replace('"', '&quot;')))
+
     def create_map(self, path='map.html', plugin_data_out=True, template=None):
         '''Write Map output to HTML and data output to JSON if available
 
@@ -671,3 +721,4 @@ class Map(object):
             for name, plugin in self.plugins.iteritems():
                 with open(name, 'w') as f:
                     f.write(plugin)
+
